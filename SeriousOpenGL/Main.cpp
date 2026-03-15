@@ -2,6 +2,9 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <stb/stb_image.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include "shaderClass.h"
 #include "VAO.h"
@@ -9,19 +12,28 @@
 #include "EBO.h"
 #include "Texture.h"
 
+const unsigned int width = 1200;
+const unsigned int height = 1200;
+
+
 // Vertices coordinates
 GLfloat vertices[] =
-{		//Coordinates		// RGB values        // Texture coordinates
-	-0.5f,  -0.5f, 0.0f,   0.8f, 0.3f,  0.02f,   0.0f, 0.0f,	// Lower left corner
-	-0.5f,   0.5f, 0.0f,   0.8f, 0.3f,  0.02f,   0.0f, 1.0f,	// Upper left corner
-	 0.5f,   0.5f, 0.0f,   1.0f, 0.6f,  0.32f,   1.0f, 1.0f,	// Upper right corner
-	 0.5f,  -0.5f, 0.0f,   0.9f, 0.45f, 0.17f,   1.0f, 0.0f		// Lower right corner
+{//		 Coordinates	 /     RGB values        /Texture coordinates
+	-0.5f,   0.0f,  0.5f,   0.83f, 0.70f, 0.44f,   0.0f, 0.0f,
+	-0.5f,   0.0f, -0.5f,   0.83f, 0.70f, 0.44f,   5.0f, 0.0f,
+	 0.5f,   0.0f, -0.5f,   0.83f, 0.70f, 0.44f,   0.0f, 0.0f,	
+	 0.5f,   0.0f,  0.5f,   0.83f, 0.70f, 0.44f,   5.0f, 0.0f,	
+	 0.0f,   0.8f,  0.0f,   0.92f, 0.86f, 0.76f,   2.5f, 5.0f
 };
 
 GLuint indices[] =
 {
-	0, 2, 1, 
-	0, 3, 2
+	0,1,2,
+	0,2,3,
+	0,1,4,
+	1,2,4,
+	2,3,4,
+	3,0,4
 };
 
 int main() 
@@ -37,7 +49,7 @@ int main()
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	//Create a GLFWwindow object with the pixels 800 x 800 and naming it "OpenGL Window"
-	GLFWwindow* window = glfwCreateWindow(800, 800, "OpenGL Window", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(width, height, "OpenGL Window", NULL, NULL);
 
 	//Error handling to see if we have a window or not
 	if (window == NULL)
@@ -53,7 +65,7 @@ int main()
 	gladLoadGL();
 
 	// Tell OpenGL which part of the screen we want to render. Here we want to render from the bottom left (0,0) to the top right (800,800)
-	glViewport(0, 0, 800, 800);
+	glViewport(0, 0, width, height);
 
 	// Create a Shader Program with Vertex shader from default.vert and Fragment shader from default.frag
 	Shader shaderProgram("default.vert", "default.frag");
@@ -81,40 +93,58 @@ int main()
 	// Get a reference for the uniform float "scale" in the Shader Program. The uniform float scale is defined in the Fragment shader
 	GLuint uniID = glGetUniformLocation(shaderProgram.ID, "scale");
 
-	// Texture
-	Texture moon("moon128x128.png", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
-	moon.texUnit(shaderProgram, "tex0", 0);
-
-	
+	// Texture choice. Textures can bug if the wrong color format is used.
+	Texture testTexture("moon.png", GL_TEXTURE_2D, GL_TEXTURE0, GL_RGB, GL_UNSIGNED_BYTE);
+	testTexture.texUnit(shaderProgram, "tex0", 0);
 
 
-	//The last time of the tick
-	double lastTime = 0;
-	//Added Scale
-	float scale = 0.0f;
+	float rotation = 0.0f;
+	double prevTime = glfwGetTime();
+
+	glEnable(GL_DEPTH_TEST);
 
 	// Main while loop 
 	while (!glfwWindowShouldClose(window))
 	{
 		glClearColor(0.07f, 0.13f, 0.17f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		// Tell OpenGL which Shader Program we want to use
 		shaderProgram.Activate();
-		// Assigns a value to the uniform variable. We can only do this after the Shader program is activated.
-		if (glfwGetTime() - lastTime > 1.0f / 60.0f)
+
+		double currentTime = glfwGetTime();
+		if (currentTime - prevTime >= 1 / 60)
 		{
-			scale += 0.05f;
-			lastTime = glfwGetTime();
+			rotation += 0.5f;
+			prevTime = currentTime;
 		}
 
-		glUniform1f(uniID, 0.2f * sin(scale));
+		// Initialize the Identity matrix (Enhetsmatrisen)
+		glm::mat4 model = glm::mat4(1.0f);
+		glm::mat4 view = glm::mat4(1.0f); 
+		glm::mat4 proj = glm::mat4(1.0f); 
+
+
+		model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 1.0f, 0.0f));
+		view = glm::translate(view, glm::vec3(0.0f, -0.5f, -2.0f));		// Move the camera down 0.5 and forward 2.0. Z axis is positive towards us and negative away from us
+		proj = glm::perspective(glm::radians(45.0f), (float)(width / height), 0.1f, 100.0f);
+
+		int modelLoc = glGetUniformLocation(shaderProgram.ID, "model");
+		glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+		int viewLoc = glGetUniformLocation(shaderProgram.ID, "view");
+		glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+		int projLoc = glGetUniformLocation(shaderProgram.ID, "proj");
+		glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(proj));
+
+		// Assigns a value to the uniform variable. We can only do this after the Shader program is activated.
+		glUniform1f(uniID, 0.5f);
 		//Binds texture so that it appears in rendering
-		moon.Bind();
+		testTexture.Bind();
 
 		// Bind the VAO so OpenGL knows how to use it
 		VAO1.Bind();
-		// Draw the triangle using GL_TRIANGLES primitive
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		// Draw primitives, number of indices, datatype of indices, index of indices
+		glDrawElements(GL_TRIANGLES, sizeof(indices)/sizeof(int), GL_UNSIGNED_INT, 0);
+		// Swap the front and back buffers
 		glfwSwapBuffers(window);
 
 		// Takes care of all GLFW events
@@ -125,7 +155,7 @@ int main()
 	VAO1.Delete();
 	VBO1.Delete();
 	EBO1.Delete();
-	moon.Delete();
+	testTexture.Delete();
 
 	// Destroying the window before ending the program
 	glfwDestroyWindow(window);

@@ -16,9 +16,14 @@ out vec2 texCoord;
 //Universally available float variable that can be accessed in the Shader program
 uniform float scale;
 
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 proj;
+
+
 void main()
 {
-	gl_Position = vec4(aPos.x + aPos.x * scale, aPos.y + aPos.y * scale, aPos.z + aPos.z * scale, 1.0);
+	gl_Position = proj * view * model * vec4(aPos, 1.0);
 	// Assigns the colors from the Vertex Data to "color"
 	color = aColor;
 	// Assigns the texture coordinates from Vertex Data to "texCoord"

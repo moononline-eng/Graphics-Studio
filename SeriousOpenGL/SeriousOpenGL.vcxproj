@@ -158,7 +158,8 @@
     <ClInclude Include="VBO.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\..\..\Downloads\moon128x128.png" />
+    <Image Include="..\..\..\Downloads\brick.png" />
+    <Image Include="moon.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
